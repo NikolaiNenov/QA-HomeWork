@@ -39,6 +39,225 @@ Select * from users where username like '%a%';
 
 select * from users where username like '%%' 
 
+#10.Регистрирайте 1 юзър през UI-а и го забранете след това от базата.
+
+update users set isBanned=1  where username = 'hoho'
+
+#11.Брой на всички постове.
+
+select count(*) from posts
+
+#12.Брой на всички постове групирани постатуса на post-a.
+
+select postStatus from posts group by postStatus
+
+select count(postStatus) from (select postStatus from posts where postStatus like "public") aa 
+
+select count(postStatus) from (select postStatus from posts where postStatus like "private") aa 
+
+#13.Намерете поста/овете с най-къс caption.
+
+Select id from
+(select id, CHAR_LENGTH(caption) as mlen from posts) aa
+where (aa.mlen)=(select min(CHAR_LENGTH(caption)) as mlen from posts)
+
+#14.Покажете поста с най-дълъг caption.
+
+Select id from
+(select id, CHAR_LENGTH(caption) as mlen from posts) aa
+where (aa.mlen)=(select max(CHAR_LENGTH(caption)) as mlen from posts)
+
+#15.Кой потребител има най-много постове. Използвайте join заявка.
+
+
+Select bb.potrebitel from
+(select aa.users as potrebitel, count(aa.posts) as broi from 
+(select posts.id as posts, users.username as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users) bb
+where bb.broi=(select max(bb.broi) from
+(select count(aa.posts) as broi from 
+(select posts.id as posts, users.username as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users) bb
+
+#16.Кои потребители имат най-малко постове. Използвайте join заявка.
+
+Ако приемем нула постове за най-малко:
+
+Select users.username as users from users left join posts on posts.userId=users.id
+where posts.id is NULL
+
+
+Ако потребителят все пак е трябвало да има пост, за да се брои най-малко:
+
+Select bb.potrebitel from
+(select aa.users as potrebitel, count(aa.posts) as broi from 
+(select posts.id as posts, users.username as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users
+) bb
+where bb.broi=(
+select min(bb.broi) from
+(select count(aa.posts) as broi from 
+(select posts.id as posts, users.username as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users) bb
+)
+
+#17.Колко потребителя с по 1 пост имаме. Използвайте join заявка, having clause и вложени заявки.
+
+Първи вариант
+Select count(potrebitel) from
+(Select bb.potrebitel from
+(select aa.users as potrebitel, count(aa.posts) as broi from 
+(select posts.id as posts, users.id as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users
+) bb
+where bb.broi=1
+) cc
+
+Втори вариант
+
+select count(potrebitel) from
+(select aa.users as potrebitel, count(aa.posts) as broi from 
+(select posts.id as posts, users.id as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users
+having count(broi)=1
+order by broi desc) bb
+
+#18.Колко потребителя с по малко от 5 поста имаме. Използвайте join заявка,havingclause и вложени заявки.
+
+select count(potrebitel) from
+(select aa.users as potrebitel, count(aa.posts) as broi from 
+(select posts.id as posts, users.id as users from posts inner join users on posts.userId=users.id) aa
+group by aa.users
+having count(broi)<5
+order by broi desc) bb
+
+#19.Кои са постовете с най-много коментари. Използвайте вложена заявка и where clause.
+
+Select posts, komentar from
+(select posts.id as posts, count(comments.Id) as komentar from comments inner join posts on posts.id=comments.postId group by posts)aa
+Where aa.komentar=
+(Select max(komentar) from
+(select posts.id as posts, count(comments.Id) as komentar from comments inner join posts on posts.id=comments.postId group by posts)aa)
+
+#20.Покажете най-стария пост. Може да използвате order или с aggregate function.
+
+select * from posts
+where createdAt=(select min(createdAt) from posts)
+
+#21.Покажете най-новия пост. Може с order или с aggregate function.
+
+select * from posts
+where createdAt=(select max(createdAt) from posts)
+
+#22.Покажете всички постове с празен caption.
+
+select *, CHAR_LENGTH(caption) from posts
+where CHAR_LENGTH(caption)=0
+
+#23.Създайте потребител през UI-а, добавете му public пост през базата и проверете дали се е създал през UI-а.
+
+select * from users
+where username='hoho1'
+
+Select * from posts
+where userId=252
+
+insert into posts (caption, coverUrl, postStatus, userId)
+values ('post prez DB', 'https://i.imgur.com/gMPUKj7.jpg', 'public', 252)
+#тези са задължителните.
+
+
+#24.Покажете всички постове икоментарите им ако имат такива.
+
+select posts.*, comments.content from posts left join comments on posts.id=comments.postId
+
+#25.Покажете само постове с коментари и самите коментари.
+
+select posts.*, comments.content from posts right join comments on posts.id=comments.postId
+
+#26.Покажете името на потребителя с най-много коментари. Използвайте join клауза.
+
+Select users.username from users join (
+Select potrebitel from (select count(id) as broi, userId as potrebitel from comments
+group by userId) bb
+where broi=( 
+select max(broi) as nainai from
+(select count(id) as broi, userId as potrebitel from comments
+group by userId
+) aa )
+)cc
+on users.id=cc.potrebitel
+
+#27.Покажете всички коментари, към кой пост принадлежат и кой ги е направил. Използвайте join клауза.
+
+Select aa.*, users.username from 
+	(select comments.*, posts.caption, posts.coverUrl from comments left join posts on posts.id=comments.postId)aa
+    left join users on aa.userId=users.id
+
+#28.Кои потребители саlike-налинай-много постове.
+
+Select yy.username from 
+(select count(xx.postsId) as broi, xx.username   from
+(Select users.username, users_liked_posts.postsId from users join users_liked_posts on users.id=users_liked_posts.usersId)xx
+group by xx.username
+) yy
+
+where yy.broi=
+(select max(yy.broi) from 
+(select count(xx.postsId) as broi, xx.username   from
+(Select users.username, users_liked_posts.postsId from users join users_liked_posts on users.id=users_liked_posts.usersId)xx
+group by xx.username) yy
+)
+
+#29.Кои потребители не са like-вали постове.
+
+select username from users left join users_liked_posts on users.id=users_liked_posts.usersId
+where users_liked_posts.usersId is NULL
+
+#30.Кои постове имат like-ове. Покажете id на поста и caption.
+
+select posts.id, posts.caption from posts join 
+(
+select aa.postsId from
+(select count(usersId) as likes, postsId from users_liked_posts
+group by postsId
+Order by likes desc) aa
+)bb
+on posts.id=bb.postsId
+
+#31.Кои постове имат най-много like-ове. Покажете id на поста и caption.
+
+Select posts.id, posts.caption from posts join 
+(
+select aa.postsId from
+(select count(usersId) as likes, postsId from users_liked_posts
+group by postsId) aa
+
+where aa.likes=
+(Select max(aa.likes) from
+(select count(usersId) as likes, postsId from users_liked_posts
+group by postsId) aa
+)
+)bb
+on posts.id=bb.postsId
+
+
+#32.Покажете всички потребители, които не follow-ват никого.
+
+select users.username from users left join users_followers_users on users.id=users_followers_users.usersId_1 where users_followers_users.usersId_2 is NULL
+
+#33.Покажете всички потребители, които не са follow-нати отникого.
+
+select users.username from users left join users_followers_users on users.id=users_followers_users.usersId_2 where users_followers_users.usersId_1 is NULL
+
+#34.Регистрирайте потребител през UI. Follow-нете някой съществуващ потребител и проверете дали записа го има в базата.
+
+select * from users where username='hoho1'
+ 
+Select * from users_followers_users where usersId_1=252
+
+
+
 
 
 
